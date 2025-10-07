@@ -2,27 +2,38 @@
 Core non-GUI logic for Security+ Study App.
 This module contains database helpers and pure logic functions so the GUI
 can remain focused on interface code.
+
+Functions include:
+- Database initialization and connection
+- Adding and importing questions
+- Retrieving questions and domains
+- Recording attempts and calculating statistics
+- Simple spaced repetition scheduling for flashcards
 """
+
+# Import necessary modules
 import sqlite3
 import csv
 import json
 import datetime
 from pathlib import Path
 
+#Make a database file in a new directory in the user's home directory
 APP_DIR = Path.home() / ".security_plus_study_app"
 APP_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = APP_DIR / "study.db"
 
-
+# database connection helper
 def get_conn():
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
     return conn
 
-
+# Initialize the database with necessary tables
 def init_db():
     conn = get_conn()
     c = conn.cursor()
+    
     # questions table
     c.execute(
         """
@@ -36,6 +47,7 @@ def init_db():
         )
         """
     )
+    
     # attempts table
     c.execute(
         """
@@ -48,6 +60,7 @@ def init_db():
         )
         """
     )
+    
     # flashcards table
     c.execute(
         """
@@ -64,7 +77,7 @@ def init_db():
     conn.commit()
     conn.close()
 
-
+# Add a single question to the database
 def add_question(domain, question, answer, qtype='free', metadata=None):
     conn = get_conn()
     c = conn.cursor()
@@ -77,7 +90,7 @@ def add_question(domain, question, answer, qtype='free', metadata=None):
     conn.close()
     return qid
 
-
+# Import questions from CSV or JSON file
 def import_csv(path):
     added = 0
     with open(path, newline='', encoding='utf-8') as f:
@@ -91,7 +104,6 @@ def import_csv(path):
                 add_question(domain, q, a, t, None)
                 added += 1
     return added
-
 
 def import_json(path):
     added = 0
@@ -107,7 +119,7 @@ def import_json(path):
                 added += 1
     return added
 
-
+# Retrieve distinct domains
 def list_domains():
     conn = get_conn()
     c = conn.cursor()
@@ -116,7 +128,7 @@ def list_domains():
     conn.close()
     return rows
 
-
+# Retrieve questions, optionally filtered by domain and limited in number
 def get_questions(domain=None, limit=None):
     conn = get_conn()
     c = conn.cursor()
@@ -130,7 +142,7 @@ def get_questions(domain=None, limit=None):
         return rows[:limit]
     return rows
 
-
+# Record an attempt at answering a question
 def record_attempt(question_id, correct):
     conn = get_conn()
     c = conn.cursor()
@@ -141,7 +153,7 @@ def record_attempt(question_id, correct):
     conn.commit()
     conn.close()
 
-
+# Calculate statistics per domain
 def stats_per_domain():
     conn = get_conn()
     c = conn.cursor()
@@ -165,7 +177,6 @@ def stats_per_domain():
         pct = (correct / attempts * 100) if attempts > 0 else 0
         stats.append({'domain': r['domain'], 'attempts': attempts, 'correct': correct, 'pct': pct})
     return stats
-
 
 # --- Simple flashcard SRS update (SM-2 simplified) ---
 def schedule_update(question_id, quality):
